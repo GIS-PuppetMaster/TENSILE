@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <algorithm>
+#include <math.h>
 //��
 #include <cudnn.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@ if (err != CUDNN_STATUS_SUCCESS) {\
         std::exit(1); \
 } \
 }
+
 //��-
 __global__ void matrix_array_set_kernel(int count,
                                         float *arr,
@@ -809,7 +811,7 @@ int DLGReduceSumGetCudnnlist(const int *input_shapes,
 
 
 //new
-int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void ** cudnnHandle, int *memorytoSaving, void **cudaStream){
+int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudnnlist, void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace){
 
     void* indices= nullptr;
     void* workspace= nullptr;
@@ -829,7 +831,13 @@ int DLGpuReduceSum(const DLArrayHandle input, DLArrayHandle output, void ***cudn
     size_t *WorkspaceSize = (size_t *)((*cudnnlist)[4]);
 
 
-
+    long long mycomputesapce=(int) *IndicesSize+(int) *WorkspaceSize;
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       //printf("%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
     cudaError_t e = cudaMalloc((void**)&indices, *IndicesSize);
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
@@ -1655,7 +1663,7 @@ int DLGpuConvolutionBackwardFilter(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle dfilter,
     void*** cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     //handle
     //cudnnHandle_t handle;
@@ -1699,7 +1707,13 @@ int DLGpuConvolutionBackwardFilter(const DLArrayHandle input,
         algo1,
         &workspace_size1));
     void* workspace1 = nullptr;
-
+    long long mycomputesapce=(int) workspace_size1;
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       // printf("\n%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
 
     cudaError_t e = cudaMalloc(&workspace1, workspace_size1);
 
@@ -1741,7 +1755,7 @@ int DLGpuConvolutionBackwardData(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle dinput,
     void*** cudnnlist,
-    void ** cudnnHandle, int *memorytoSaving, void **cudaStream) {
+    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
 
 
@@ -1787,6 +1801,13 @@ int DLGpuConvolutionBackwardData(const DLArrayHandle input,
         algo2,
         &workspace_size2));
     void* workspace2 = nullptr;
+    long long mycomputesapce=(int) workspace_size2;
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       // printf("\n%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
 
     cudaError_t e = cudaMalloc(&workspace2, workspace_size2);
 
@@ -1953,7 +1974,7 @@ int DLGpuConvolution2DForward(const DLArrayHandle input,
     const DLArrayHandle filter,
     DLArrayHandle output,
     void ***cudnnlist,
-    void ** cudnnHandle, int *memorytoSaving, void **cudaStream) {
+    void ** cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     assert(input->ndim == 4);
     assert(filter->ndim == 4);
@@ -2003,7 +2024,13 @@ int DLGpuConvolution2DForward(const DLArrayHandle input,
         &workspace_size));
     void* workspace = nullptr;
 
-
+    long long mycomputesapce=(int) workspace_size;
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       //printf("\n????%d,%lld\n",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
     cudaError_t e = cudaMalloc(&workspace, workspace_size);
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
@@ -3552,7 +3579,7 @@ int DLGpuDropoutForward(const DLArrayHandle input,
     void **reserveSpace_p,/*back use*/
     void ***inputd,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream){
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace){
 
 
 
@@ -3576,7 +3603,13 @@ int DLGpuDropoutForward(const DLArrayHandle input,
         &reserveSpaceSizeInBytes));
 
 
-
+    long long mycomputesapce=(int) stateSizeInBytes+(int) reserveSpaceSizeInBytes;
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       // printf("\n%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
     cudaError_t e = cudaMalloc((void**)&states, stateSizeInBytes);
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
@@ -3601,14 +3634,29 @@ int DLGpuDropoutForward(const DLArrayHandle input,
 
     cudnnDropoutDescriptor_t dropout_descriptor;
     CUDNN_CALL(cudnnCreateDropoutDescriptor(&dropout_descriptor));
-
-    CUDNN_CALL(cudnnSetDropoutDescriptor(dropout_descriptor,
+    //printf("before\n");
+    cudnnStatus_t err=cudnnSetDropoutDescriptor(dropout_descriptor,
         handle,
         dropout,
         states,
         stateSizeInBytes,
-        seed));
+        seed);
+     if(err != CUDNN_STATUS_SUCCESS){\
+        *memorytoSaving = 100*pow(2,20);
 
+          cudaFree(states);
+          cudaFree(*reserveSpace_p);
+          return 0;
+    }\
+    if (err != CUDNN_STATUS_SUCCESS) {\
+        \
+            printf("出错了");
+            std::cout << "    Error occurred: " << err << std::endl; \
+            std::exit(1); \
+    } \
+   // printf("正确了");
+   // printf("%d,err",err);
+    //printf("after\n");
 
     CUDNN_CALL(cudnnDropoutForward(handle,
         dropout_descriptor,
@@ -3672,7 +3720,7 @@ int DLGpuDropoutBackward(const DLArrayHandle doutput,
 
 
 
-
+    //printf("befoer");
     CUDNN_CALL(cudnnDropoutBackward(handle,
         dropout_descriptor,
         input_descriptor,
@@ -3682,7 +3730,7 @@ int DLGpuDropoutBackward(const DLArrayHandle doutput,
         *reserveSpace_p,
         reserveSpaceSizeInBytes));
 
-
+    //printf("after\n");
     CUDNN_CALL(cudnnDestroyDropoutDescriptor(dropout_descriptor));
     //CUDNN_CALL(cudnnDestroy(handle));
     cudaFree(*reserveSpace_p);
@@ -4228,7 +4276,7 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
 
 
@@ -4242,6 +4290,13 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
     cudnnTensorDescriptor_t derivedBnDesc = (cudnnTensorDescriptor_t)((*cudnnlist)[1]);
 
      size_t *s = (size_t *)((*cudnnlist)[2]);
+     long long mycomputesapce=4*((int) *s);
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       //printf("\n%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
      float *bnScalec = (float*)malloc(*s);
     float *bnBiasc = (float*)malloc(*s);
     for(int i=0;i< *s / sizeof(float);i++){
@@ -4258,6 +4313,8 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
       //内存超了：
+      free(bnScalec);
+      free(bnBiasc);
       *memorytoSaving = (int) *s;
 
       
@@ -4267,6 +4324,8 @@ int DLGpuBatchNormalizationForward(const DLArrayHandle input,
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
       //内存超了：
+      free(bnScalec);
+      free(bnBiasc);
       *memorytoSaving = (int) *s;
       cudaFree(bnScale);
     
@@ -4360,7 +4419,7 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
     void **mean_p,
     void **Variance_p,
     void ***cudnnlist,
-    void **cudnnHandle, int *memorytoSaving, void **cudaStream) {
+    void **cudnnHandle, int *memorytoSaving, void **cudaStream,long long computespace) {
 
     //assert(input->ndim==4||input->ndim==3||input->ndim==5);
 
@@ -4376,6 +4435,13 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
     cudnnTensorDescriptor_t bnScaleBiasDiffDesc = (cudnnTensorDescriptor_t)((*cudnnlist)[1]);
 
       size_t *s = (size_t *)((*cudnnlist)[2]);
+      long long mycomputesapce=3*((int) *s);
+    if((mycomputesapce>computespace)&&(computespace!=-1))
+    {
+       //printf("\n%d,%d",mycomputesapce,computespace);
+       *memorytoSaving=mycomputesapce-computespace;
+       return 0;
+    }
     //��ķ�ʽ��������padding
     float *bnScalec = (float*)malloc(*s);
     for(int i=0;i< *s / sizeof(float);i++){
@@ -4384,10 +4450,14 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
     float *bnScale;
     float *resultBnScaleDiff;
     float *resultBnBiasDiff;
+
+
+
     cudaError_t e = cudaMalloc((void**)&bnScale, *s);
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
       //内存超了：
+      free(bnScalec);
       *memorytoSaving = (int) *s;
 
      
@@ -4397,6 +4467,7 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
       //内存超了：
+      free(bnScalec);
       *memorytoSaving = (int) *s;
       cudaFree(bnScale);
    
@@ -4406,6 +4477,7 @@ int DLGpuBatchNormalizationBackward(const DLArrayHandle input,
 
     if ((e != cudaSuccess) && (e != cudaErrorCudartUnloading)){
       //内存超了：
+      free(bnScalec);
       *memorytoSaving = (int) *s;
       cudaFree(bnScale);
       cudaFree(resultBnScaleDiff);
@@ -4897,6 +4969,8 @@ int getInt(int *intp){
     return *intp;
 }
 
+
+
 #include <assert.h>
 // Convenience function for checking CUDA runtime API results
 // can be wrapped around any runtime API call. No-op in release builds.
@@ -4916,9 +4990,11 @@ void profileCopies(float        *h_a,
                    float        *h_b,
                    float        *d,
                    unsigned int  n,
-                   char         *desc)
+                   char         *desc,
+                   int        *in,
+                   int        *out)
 {
-  printf("\n%s transfers\n", desc);
+  //printf("\n%s transfers\n", desc);
 
   unsigned int bytes = n * sizeof(float);
 
@@ -4935,15 +5011,16 @@ void profileCopies(float        *h_a,
 
   float time;
   checkCuda( cudaEventElapsedTime(&time, startEvent, stopEvent) );
-  printf("  Host to Device bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
-
+  //printf("  Host to Device bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
+  *in=(int)(bytes / time);
   checkCuda( cudaEventRecord(startEvent, 0) );
   checkCuda( cudaMemcpy(h_b, d, bytes, cudaMemcpyDeviceToHost) );
   checkCuda( cudaEventRecord(stopEvent, 0) );
   checkCuda( cudaEventSynchronize(stopEvent) );
 
   checkCuda( cudaEventElapsedTime(&time, startEvent, stopEvent) );
-  printf("  Device to Host bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
+  //printf("  Device to Host bandwidth (GB/s): %f\n", bytes * 1e-6 / time);
+  *out=(int)(bytes / time);
 
   for (int i = 0; i < n; ++i) {
     if (h_a[i] != h_b[i]) {
@@ -4957,7 +5034,7 @@ void profileCopies(float        *h_a,
   checkCuda( cudaEventDestroy(stopEvent) );
 }
 
-int testPcie()
+int testPcie(int *in,int *out)
 {
   unsigned int nElements = 4*1024*1024;
   const unsigned int bytes = nElements * sizeof(float);
@@ -4985,14 +5062,14 @@ int testPcie()
   cudaDeviceProp prop;
   checkCuda( cudaGetDeviceProperties(&prop, 0) );
 
-  printf("\nDevice: %s\n", prop.name);
-  printf("Transfer size (MB): %d\n", bytes / (1024 * 1024));
+  //printf("\nDevice: %s\n", prop.name);
+  //printf("Transfer size (MB): %d\n", bytes / (1024 * 1024));
 
   // perform copies and report bandwidth
-  profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Pageable");
-  profileCopies(h_aPinned, h_bPinned, d_a, nElements, "Pinned");
+  profileCopies(h_aPageable, h_bPageable, d_a, nElements, "Pageable",in,out);
+  profileCopies(h_aPinned, h_bPinned, d_a, nElements, "Pinned",in,out);
 
-  printf("\n");
+ // printf("\n");
 
   // cleanup
   cudaFree(d_a);

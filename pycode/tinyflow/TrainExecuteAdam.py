@@ -1,18 +1,14 @@
 from __future__ import absolute_import
 import time
 import numpy as np
-from . import ndarray, gpu_op, memoryManager
-import random
-import queue
-from . import autodiff as ad
+from pycode.tinyflow import ndarray, gpu_op
+from pycode.tinyflow import autodiff as ad
+import os,datetime
 
-
-
-
+node_to_arr_map = {}
 
 class TrainExecutor(object):
     """Executor computes values for given set of nodes in computation graph."""
-
 
     def __init__(self, targetloss, learning_rate=0.001, ctx=ndarray.gpu(0)):
 
@@ -38,7 +34,7 @@ class TrainExecutor(object):
         #存node的shape
         self.node_to_shape_map = None
         #node和其对应的value，这里value自己定义,或者node本身可以判断状态
-        self.node_to_arr_map = {}
+        # self.node_to_arr_map = {}
 
         #初始化变量的np
         self.Variable_node_np_value = None
@@ -53,14 +49,21 @@ class TrainExecutor(object):
         self.isfirstrun = 0
         self.isc = 0
 
+        for i in range(len(self.topo_order)):
+            self.topo_order[i].index = i
 
+        #日志记录
+        self.start_finish_time = 0
+        self.hit_count = 0
+        self.swap_count = 0
+        self.node_order = []
 
 
     def infer_shape(self, feed_shapes):
         """Given shapes of feed_dict nodes, infer shape for all nodes in graph.
 
         Implementation note:
-        Iteratively calls node.op.get_predict_results to infer shapes.
+        Iteratively calls node.op.infer_shape to infer shapes.
         Node shapes stored in self.node_to_shape_map.
 
         Parameters
@@ -72,9 +75,10 @@ class TrainExecutor(object):
         for idx, node in enumerate(self.topo_order):
             if node in self.node_to_shape_map:
                 continue
+
             input_shapes = [self.node_to_shape_map[i] for i in node.inputs]
             assert None not in input_shapes
-            self.node_to_shape_map[node] = node.op.get_predict_results(node, input_shapes, self.cudnnHandle)
+            self.node_to_shape_map[node] = node.op.infer_shape(node, input_shapes, self.cudnnHandle)
 
     #放出变量的np字典
     def init_Variable(self, feed_dict):
@@ -89,7 +93,7 @@ class TrainExecutor(object):
 
     #feed_dict为np数组
     def run(self, feed_dict, Accuracy_node = None ,convert_to_numpy_ret_vals=False):
-
+        global node_to_arr_map
 
         if self.isfirstrun == 0:
 
@@ -107,15 +111,18 @@ class TrainExecutor(object):
             #把shape放进self.node_to_shape_map
             self.infer_shape(feed_shapes)
 
-            #存已经被计算过的node
-            node_computed = set()
+            # 日志记录
+            self.start_finish_time = datetime.datetime.now()
+            self.node_order.append("topo_order:")
+            for i in range(len(self.topo_order)):
+                self.node_order.append("index:" + str(i) + "\t" + self.topo_order[i].name)
+            self.node_order.append("\nrun:")
+
             #开始运行
-            for node in self.topo_order:
+            for i in range(len(self.topo_order)):
+                node = self.topo_order[i]
+                self.node_order.append("index:" + str(i) + "\t" + node.name + "\ttime:" + str(datetime.datetime.now()))
 
-
-                #已经被计算过了
-                if node in node_computed:
-                    continue
                 #是inputs
                 if node in feed_dict.keys():
                     #申请空间
@@ -128,8 +135,7 @@ class TrainExecutor(object):
                         ret = ndarray.array(feed_dict[node], ctx=self.ctx)
                     #此时ret为ndarray
                     #value都存在self.node_to_arr_map
-                    self.node_to_arr_map[node] = ret
-                    node_computed.add(node)
+                    node_to_arr_map[node] = ret
                     continue
 
 
@@ -145,24 +151,20 @@ class TrainExecutor(object):
                         ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
                     # 此时ret为ndarray
                     # value都存在self.node_to_arr_map
-                    self.node_to_arr_map[node] = ret
+                    node_to_arr_map[node] = ret
                 else:
                     # 是SgdOp,不申请内存
-                    self.node_to_arr_map[node] = None
+                    node_to_arr_map[node] = None
 
                 #放inputs的ndarray，
                 input_vals = []
                 for input_node in node.inputs:
                     #此时要保证在gpu中
                     if node.inputs:
-                        input_vals.append(self.node_to_arr_map[input_node])
-
-
-
+                        input_vals.append(node_to_arr_map[input_node])
 
                 #除了SgdOp，其他的点此时要保证在gpu中
-                node_val = self.node_to_arr_map[node]
-
+                node_val = node_to_arr_map[node]
 
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 while memorytoSaving != 0:
@@ -172,67 +174,55 @@ class TrainExecutor(object):
                     #解决了重新计算
                     memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
 
-                #此点被计算过了
-                node_computed.add(node)
-
-
+            # clear
+            for node in self.topo_order:
+                if node.isw==0 or node.isw==2:  # 只有参数有用
+                    node_to_arr_map[node].free_gpu()
+                    node_to_arr_map[node]=None
 
             # 不是第一次了
             self.isfirstrun = 1
 
             #把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中
             #但是如果这里value是None的话，他会报错
-            result_output = [self.node_to_arr_map[self.targetloss]]
-            re_var = []
-            for node in self.Variable_node_list:
-                re_var.append(self.node_to_arr_map[node])
-            re_var.reverse()
-            result_output = result_output + re_var
-            #结果，计算正确率
-            if Accuracy_node !=None:
-                result_output.append(self.node_to_arr_map[Accuracy_node])
 
+            # result_output = [node_to_arr_map[self.targetloss]]
+            # re_var = []
+            # for node in self.Variable_node_list:
+            #     re_var.append(node_to_arr_map[node])
+            # re_var.reverse()
+            # result_output = result_output + re_var
+            # #结果，计算正确率
+            # if Accuracy_node !=None:
+            #     result_output.append(self.node_to_arr_map[Accuracy_node])
             #adam更新参数
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
 
-            return result_output
+
+            return []
 
 
 
         else:
 
-            # 存已经被计算过的node
-            node_computed = set()
             # 开始运行
-
-            for node in self.topo_order:
-
-
-                # 已经被计算过了
-                if node in node_computed:
-                    continue
+            time1=time.time()
+            for i in range(len(self.topo_order)):
+                node = self.topo_order[i]
+                self.node_order.append("index:" + str(i) + "\t" + node.name + "\ttime:" + str(datetime.datetime.now()))
                 # 是inputs
                 if node in feed_dict.keys():
+                    ret = ndarray.array(feed_dict[node], ctx=self.ctx)
+                    while isinstance(ret, int):
+                        # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
+                        assert 0
+                        # 解决了再声明内存
+                        ret = ndarray.array(feed_dict[node], ctx=self.ctx)
+                    # 此时ret为ndarray
+                    # value都存在self.node_to_arr_map
+                    node_to_arr_map[node] = ret
 
-                    #如果此时在gpu中,把np的值赋值过去
-                    self.node_to_arr_map[node]._sync_copyfrom(feed_dict[node])
-
-                    #没在：
-                    # # 申请空间
-                    # ret = ndarray.array(feed_dict[node], ctx=self.ctx)
-                    # while isinstance(ret, int):
-                    #     # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
-                    #     assert 0
-                    #     # 解决了再声明内存
-                    #     ret = ndarray.array(feed_dict[node], ctx=self.ctx)
-                    # # 此时ret为ndarray
-                    # # value都存在self.node_to_arr_map
-                    # self.node_to_arr_map[node] = ret
-
-
-
-                    node_computed.add(node)
                     continue
 
                 # 如果node是变量，不用管
@@ -246,19 +236,19 @@ class TrainExecutor(object):
                 if node.issgd == 0:
 
                     #在gpu中，可以直接拿来用，直接pass
-                    pass
-                    #不在gpu中，生成新的empty
+                    # pass
 
-                    # # 申请空间
-                    # ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
-                    # while isinstance(ret, int):
-                    #     # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
-                    #     assert 0
-                    #     # 解决了再声明内存
-                    #     ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
-                    # # 此时ret为ndarray
-                    # # value都存在self.node_to_arr_map
-                    # self.node_to_arr_map[node] = ret
+                    #不在gpu中，生成新的empty
+                    # 申请空间
+                    ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                    while isinstance(ret, int):
+                        # 返回的int意味着内存不够，此时ret是申请失败的cudamalloc（，size）的size，同理见ndarray的初始化函数，这里被动模式
+                        assert 0
+                        # 解决了再声明内存
+                        ret = ndarray.empty(self.node_to_shape_map[node], ctx=self.ctx)
+                    # 此时ret为ndarray
+                    # value都存在self.node_to_arr_map
+                    node_to_arr_map[node] = ret
 
 
 
@@ -267,12 +257,12 @@ class TrainExecutor(object):
                 input_vals = []
                 for input_node in node.inputs:
                     # 此时要保证在gpu中
-                    input_vals.append(self.node_to_arr_map[input_node])
+                    input_vals.append(node_to_arr_map[input_node])
 
 
 
                 # 除了SgdOp，其他的点此时要保证在gpu中
-                node_val = self.node_to_arr_map[node]
+                node_val = node_to_arr_map[node]
 
                 memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
                 while memorytoSaving != 0:
@@ -282,34 +272,48 @@ class TrainExecutor(object):
                     # 解决了重新计算
                     memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
 
-                # 此点被计算过了
-                node_computed.add(node)
-
+            # clear
+            for node in self.topo_order:
+                if node.isw==0 or node.isw==2:  # 只有参数有用
+                    node_to_arr_map[node].free_gpu()
+                    node_to_arr_map[node] = None
 
             # 把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中
             # 但是如果这里value是None的话，他会报错
-            result_output = [self.node_to_arr_map[self.targetloss]]
-            re_var = []
-            for node in self.Variable_node_list:
-                re_var.append(self.node_to_arr_map[node])
-            re_var.reverse()
-            result_output = result_output + re_var
-            # 结果，计算正确率
-            if Accuracy_node != None:
-                result_output.append(self.node_to_arr_map[Accuracy_node])
 
+            # result_output = [node_to_arr_map[self.targetloss]]
+            # re_var = []
+            # for node in self.Variable_node_list:
+            #     re_var.append(node_to_arr_map[node])
+            # re_var.reverse()
+            # result_output = result_output + re_var
+            # # 结果，计算正确率
+            # if Accuracy_node != None:
+            #     result_output.append(node_to_arr_map[Accuracy_node])
             # adam更新参数
             self.b1t[0] = self.b1t[0] * self.b1
             self.b2t[0] = self.b2t[0] * self.b2
-            return result_output
 
 
+            return []
 
+    def get_start_finish_time(self):
+        return self.start_finish_time
 
+    def get_hit(self):
+        return self.hit_count, self.swap_count
 
+    def get_node_order(self):
+        return self.node_order
 
-
-
+    def destroy_cudaStream(self):
+        for node in self.topo_order:
+            if node_to_arr_map[node] != None:
+                node_to_arr_map[node].free_gpu()
+            node_to_arr_map[node] = None
+        gpu_op.destroy_cublasHandle(self.cublasHandle)
+        gpu_op.destroy_cudnnHandle(self.cudnnHandle)
+        gpu_op.destroy_cudaStream(self.cudaStream)
 
 
 
@@ -376,8 +380,8 @@ def swapadam(topoorder):
             tmp = topoorder[i]
             topoorder.remove(tmp)
             topoorder.insert(j,tmp)
-    for i in range(len(topoorder)):
-        print(i,topoorder[i])
+    # for i in range(len(topoorder)):
+    #     print(i,topoorder[i])
     return topoorder
 
 

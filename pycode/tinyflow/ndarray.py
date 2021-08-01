@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from ._base import _LIB, check_call, c_array
 import ctypes
 import numpy as np
+import pynvml
+import os
 
 
 class DLContext(ctypes.Structure):
@@ -71,8 +73,7 @@ class NDArray(object):
     Strictly this is only an Array Container(a buffer object)
     No arthimetic operations are defined.
     """
-    __slots__ = ["handle", "is_freed"]
-
+    __slots__ = ["handle","is_freed"]
 
     # pylint: disable=no-member
     def __init__(self, handle):
@@ -86,20 +87,12 @@ class NDArray(object):
         self.is_freed = False
 
     def __del__(self):
-        # pass
-        # todo 内存泄露风险
-
-        # if is_gpu_ctx(self.ctx):
-        #     print("ndarray已经被释放")
         if self.is_freed:
             return
         check_call(_LIB.DLArrayFree(self.handle))
 
 
     def free_gpu(self):
-        # pass
-        # todo 内存泄露考虑
-        # print("ndarray已经被手动释放")
         self.is_freed = True
         check_call(_LIB.DLArrayFree(self.handle))
 
@@ -201,12 +194,31 @@ class NDArray(object):
             raise ValueError("Unsupported target type %s" % str(type(target)))
         return target
 
+    def old_copyto(self, target):
+        """Copy array to target
+        Parameters
+        ----------
+        target : NDArray
+            The target array to be copied, must have same shape as this array.
+        """
+        if isinstance(target, DLContext):
+            target = empty(self.shape, target)
+            if isinstance(target, int):
+                return target
+        if isinstance(target, NDArray):
+
+            check_call(_LIB.DLArrayCopyFromTo(
+                self.handle, target.handle, None))
+
+        else:
+            raise ValueError("Unsupported target type %s" % str(type(target)))
+        return target
 
 
 
 
 #用isinstance==int判断是否超内存
-def array(arr, ctx=cpu(0)):
+def array(arr, ctx=cpu(0),maxmem=-1,nowmem=0):
     """Create an array from source arr.
     Parameters
     ----------
@@ -219,6 +231,21 @@ def array(arr, ctx=cpu(0)):
     ret : NDArray
         The created array
     """
+    if maxmem>0:
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)   #GPU0上面跑
+        info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+        gpu_memory_used = 0
+        for info_i in info_list:
+            if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+                gpu_memory_used += info_i.usedGpuMemory
+        pynvml.nvmlShutdown()  # 最后关闭管理工具
+        gpu_memory_used+=nowmem
+        if gpu_memory_used > maxmem:
+            return int(gpu_memory_used - maxmem)
+
+
+
     if not isinstance(arr, np.ndarray):
         arr = np.array(arr)
     ret = empty(arr.shape, ctx)
@@ -230,7 +257,7 @@ def array(arr, ctx=cpu(0)):
     return ret
 
 #用isinstance==int判断是否超内存
-def empty(shape, ctx=cpu(0)):
+def empty(shape, ctx=cpu(0),maxmem=-1,nowmem=0):
     """Create an empty array given shape and device
     Parameters
     ----------
@@ -244,6 +271,19 @@ def empty(shape, ctx=cpu(0)):
         The array dlsys supported.
     申请失败，返回size
     """
+    if maxmem > 0:
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        info_list = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+        gpu_memory_used = 0
+        for info_i in info_list:
+            if info_i.pid == os.getpid():  # 如果与需要记录的pid一致
+                gpu_memory_used += info_i.usedGpuMemory
+        pynvml.nvmlShutdown()  # 最后关闭管理工具
+        gpu_memory_used += nowmem
+        if gpu_memory_used > maxmem:
+            return int(gpu_memory_used - maxmem)
+
     shape = c_array(ctypes.c_int64, shape)
     ndim = ctypes.c_int(len(shape))
     handle = DLArrayHandle()
@@ -255,7 +295,6 @@ def empty(shape, ctx=cpu(0)):
     if memorytoSaving == 0:
         return NDArray(handle)
     else:
-        print("内存错误",memorytoSaving)
         return memorytoSaving
 
 

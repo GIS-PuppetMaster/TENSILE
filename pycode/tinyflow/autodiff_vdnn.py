@@ -13,81 +13,6 @@ index_to_cpu_map = {}
 index_to_cpu_flag = {}
 index_to_gpu_map = {}
 
-
-class MemoryManagerController(threading.Thread):
-    def __init__(self, control_queue: queue.Queue, have_done_queue: queue.Queue):
-        threading.Thread.__init__(self)
-        self.will_do_queue = queue.Queue()
-        self.have_done_queue = have_done_queue
-        self.control_queue = control_queue
-        # todo hard code with device id again, may need to change
-        self.cpu_ctx = ndarray.cpu(0)
-        self.gpu_ctx = ndarray.gpu(0)
-        self.memoryManager = MemoryManager(self.will_do_queue, self.have_done_queue)
-        self.memoryManager.start()
-
-    def run(self):
-        while True:
-            # todo 接口内容：wait_time: 距离上一次swap的间隔时间，node_index和node_ndarray同Manager中的定义
-            # todo 在此处检查当前移动是否需要，即检查是否已经在对应的ctx中，加入变量move_to_gpu
-            # (wait_time, node_index, node_ndarray, move_to_gpu)
-            control_message = self.control_queue.get(block=True)
-            wait_time = control_message[0]
-            node_index = control_message[1]
-            move_to_gpu = control_message[2]
-            # print(node_index, move_to_gpu)
-            time.sleep(wait_time / 1000.0)
-            self.will_do_queue.put((node_index, move_to_gpu))
-
-
-class MemoryManager(threading.Thread):
-    def __init__(self, will_do_queue: queue.Queue, have_done_queue: queue.Queue):
-        threading.Thread.__init__(self)
-        self.will_do_queue = will_do_queue
-        self.have_done_queue = have_done_queue
-        # todo hard code with device id again, may need to change
-        self.cpu_ctx = ndarray.cpu(0)
-        self.gpu_ctx = ndarray.gpu(0)
-        self.cudaSwapStream = gpu_op.create_cudaStream()
-
-    def run(self):
-        while (True):
-            node = self.will_do_queue.get(block=True)
-            node_index = node[0]
-            move_to_gpu = node[1]
-            node_ndarray_new = None
-
-
-            global index_to_cpu_map
-            global index_to_gpu_map
-
-
-            if move_to_gpu == 0:
-                node_ndarray = index_to_gpu_map[node_index]
-                node_ndarray.copyto(index_to_cpu_map[node_index], self.cudaSwapStream)
-                index_to_cpu_flag[node_index] = True
-                index_to_gpu_map[node_index].free_gpu()
-                index_to_gpu_map[node_index] = None
-                # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
-
-            else:
-                node_ndarray = index_to_cpu_map[node_index]
-                # time1 = datetime.datetime.now()
-
-                node_ndarray_new = ndarray.empty(node_ndarray.shape, self.gpu_ctx)
-                # time2 = datetime.datetime.now()
-
-                node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
-                if index_to_gpu_map[node_index] is None:
-                    index_to_gpu_map[node_index] = node_ndarray_new
-                else:
-                    print("swap in 和 passive import 重合")
-                # print("swap finish: node " + str(node_index) + " to " + str(move_to_gpu))
-                # print((time2 - time1).microseconds)
-
-
-
-
 class Node(object):
     """Node in a computation graph."""
 
@@ -108,8 +33,7 @@ class Node(object):
         self.const_attr = None
         self.name = ""
         self.index = 0
-        self.array_status = 0
-        # todo array_status 0 - cpu ,  1 - gpu , 2 - trans from cpu to gpu, 3 - trans from gpu to cpu
+        self.array_status = -1
         self.control_message_in = []
         self.control_message_in_time = 0
         self.control_message_out = []
@@ -121,6 +45,11 @@ class Node(object):
         # 是不是参数
         self.issgd = 0
         self.isw = 0
+        self.is_conv = 0
+        self.is_conv_input=0
+        self.prefetched = 0
+        self.refcnt = 0
+
 
     def __add__(self, other):
         """Adding two nodes return a new node."""
@@ -162,9 +91,7 @@ def Variable(name):
     placeholder_node.isw = 1
     return placeholder_node
 
-    # 数据用
-
-
+# 数据用
 def Placeholder(name):
     """User defined variables in an expression.
         e.g. x = Variable(name = "x")
@@ -826,6 +753,7 @@ class Convolution1DForwardOp(Op):
         new_node.padding = padding
         new_node.v = v
         new_node.cudnnlist = [0]
+        new_node.is_conv = 1
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -854,6 +782,7 @@ class Convolution1DBackwardOp(Op):
         # 0 is dinput, 1 is dfilter
         new_node.type = type
         new_node.cudnnlist = cudnnlist
+        new_node.is_conv = 2
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -890,6 +819,7 @@ class Convolution2DForwardOp(Op):
         new_node.u = u
         new_node.v = v
         new_node.cudnnlist = [0]
+        new_node.is_conv = 1
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -921,7 +851,7 @@ class Convolution2DBackwardOp(Op):
         new_node.type = type
 
         new_node.cudnnlist = cudnnlist
-
+        new_node.is_conv = 2
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -960,6 +890,7 @@ class Convolution3DForwardOp(Op):
         new_node.s2 = s2
         new_node.s3 = s3
         new_node.cudnnlist = [0]
+        new_node.is_conv = 1
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -988,7 +919,7 @@ class Convolution3DBackwardOp(Op):
         # 0 is dinput, 1 is dfilter
         new_node.type = type
         new_node.cudnnlist = cudnnlist
-
+        new_node.is_conv = 2
         return new_node
 
     def compute(self, node, input_vals, output_val, cudnnHandle, cublasHandle, cudaStream, use_numpy=False):
@@ -1911,6 +1842,7 @@ class ConcatBackwardOp(Op):
             gpu_op.concat_a_backward(input_vals[0], input_vals[1], input_vals[2], output_val, cudaStream)
         if node.type == 1:
             gpu_op.concat_b_backward(input_vals[0], input_vals[1], input_vals[2], output_val, cudaStream)
+
         return 0
 
     def gradient(self, node, output_grad):
@@ -2656,7 +2588,7 @@ def find_topo_sort(node_list):
     visited = set()
     topo_order = []
     for node in node_list:
-        #  print(node.name)
+        # print(node.name)
         topo_sort_dfs(node, visited, topo_order)
     return topo_order
 

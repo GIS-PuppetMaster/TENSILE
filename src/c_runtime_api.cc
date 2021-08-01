@@ -108,7 +108,6 @@ int DLArrayAlloc(const index_t *shape, index_t ndim, DLContext ctx,
   arr->data = DeviceAPIManager::Get(ctx)->AllocDataSpace(ctx, size, alignment);
   if(arr->data == nullptr){
       *memorytoSaving = (int) size;
-      printf("dwaddw\n");
       return 0;
 
   }
