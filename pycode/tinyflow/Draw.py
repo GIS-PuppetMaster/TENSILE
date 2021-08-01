@@ -6,7 +6,7 @@ from matplotlib.ticker import MultipleLocator
 from numpy import arange
 from MakeCSV import make_csv
 
-# make_csv()
+make_csv()
 net_type = ['VGG-16', 'InceptionV3', 'InceptionV4', 'ResNet-50', 'DenseNet']
 method_type = ['TENSILE', 'vDNN', 'Capuchin']
 df_list = []
