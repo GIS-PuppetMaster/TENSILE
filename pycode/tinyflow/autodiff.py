@@ -1,6 +1,7 @@
 """ library to take autodiff and execute a computation graph """
 from __future__ import absolute_import
 
+import multiprocessing
 import sys
 import threading
 import time
@@ -10,6 +11,8 @@ import random
 import queue
 import datetime
 from line_profiler import LineProfiler
+
+
 
 import os
 
@@ -38,7 +41,7 @@ class MemoryManagerController(threading.Thread):
         self.cpu_ctx = ndarray.cpu(0)
         self.gpu_ctx = ndarray.gpu(0)
         self.memoryManager = MemoryManager(self.will_do_queue, self.have_done_queue)
-        # self.memoryManager.setDaemon(True)
+        self.memoryManager.setDaemon(True)
         self.memoryManager.start()
 
     def run(self):
@@ -893,7 +896,7 @@ class Convolution1DForwardOp(Op):
         assert len(input_vals) == 2
 
         memorytoSaving = gpu_op.convolution_1d_forward(input_vals[0], input_vals[1], output_val, node.cudnnlist[0],
-                                                       cudnnHandle)
+                                                       cudnnHandle, cudaStream)
         return memorytoSaving
 
     def gradient(self, node, output_grad):
@@ -2295,7 +2298,7 @@ class Executor(object):
         self.will_do_queue = queue.Queue()
         self.memoryManagerController = MemoryManagerController(self.control_queue, self.will_do_queue,
                                                                self.have_done_queue)
-        # self.memoryManagerController.setDaemon(True)
+        self.memoryManagerController.setDaemon(True)
         self.memoryManagerController.start()
 
         self.cudaStream = gpu_op.create_cudaStream()
@@ -2313,6 +2316,8 @@ class Executor(object):
         self.ctx_cpu = ndarray.cpu(0)
         self.ctx_gpu = ndarray.gpu(0)
         self.total_node = len(self.topo_order)
+        if not os.path.exists(log_path):
+            os.makedirs(log_path)
         self.f = open(f"{log_path}/hit_rate.txt", 'w')
 
     def infer_shape(self, feed_shapes):
@@ -2402,9 +2407,17 @@ class Executor(object):
                         for input_node in node.inputs:
                             input_shape.append(self.node_to_shape_map[input_node])
                         operation_run_time = gettime(node, input_shape)
+                        # q = multiprocessing.Queue()
+                        # p = multiprocessing.Process(target=gettime, args=(node, input_shape, q))
+                        # p.start()
+                        # p.join()
+                        # operation_run_time = q.get()
+                        # p.close()
+                        # q.close()
                         if operation_run_time - 0.0 < 1e-10:
                             operation_run_time = 1e-5
                         self.predict_results[node.index] = operation_run_time
+
 
     def run(self, feed_dict, convert_to_numpy_ret_vals=False):
         """

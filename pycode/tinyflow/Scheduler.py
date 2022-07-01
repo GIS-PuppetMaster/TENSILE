@@ -20,7 +20,7 @@ from pynvml import *
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Conv1D, MaxPool1D, Dropout, Flatten
 from matplotlib import cm
-from tensorboard.plugins.hparams import keras
+import keras
 from line_profiler import LineProfiler
 from typing import List
 
@@ -438,7 +438,7 @@ class MemoryAnalyzer:
         self.index_of_end_time_axis = {self.end_time_axis[i]: i for i in range(len(self.end_time_axis))}
         # 计算显存开销
         # occupied by handle, cudnn, cuda stream and cudart
-        memory_used = 0
+        memory_used = 799
         max_memory_actual = float('-inf')
         in_gpu_tensors = set()
         max_memory_tensors = set()

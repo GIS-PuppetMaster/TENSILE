@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 import time
 import numpy as np
-from . import ndarray, gpu_op, memoryManager
+from pycode.tinyflow import ndarray, gpu_op
 import random
 import queue
-from . import autodiff as ad
+from pycode.tinyflow import autodiff as ad
 
 
 

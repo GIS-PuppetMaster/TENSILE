@@ -7,7 +7,6 @@ from pycode.tinyflow import gpu_op
 from pycode.tinyflow import TrainExecuteAdam
 import numpy as np
 import random
-from pycode.tinyflow import train
 import pickle
 import time
 

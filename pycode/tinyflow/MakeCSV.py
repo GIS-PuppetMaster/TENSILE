@@ -41,7 +41,7 @@ title = ['saved_ratio', 'extra_overhead', 'vanilla_max_memory_used', 'schedule_m
 baseline_title = ['vanilla', 'max_memory', 'time', '', 'vDNN', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency', '', 'capuchin', 'max_memory', 'time', 'memory_saved', 'extra_overhead',
                   'efficiency']
-result_csv_log = 'D:\PycharmProjects\TENSILE实验数据/baseline/log/'
+result_csv_log = 'D:\PycharmProjects\TENSILE实验数据/TENSILE/log/'
 
 
 def get_row(path_):

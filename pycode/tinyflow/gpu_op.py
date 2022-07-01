@@ -126,7 +126,8 @@ def reduce_sum_new(in_arr, out_arr, cudnnlist, cudnnHandle, cudaStream):
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
-    _LIB.DLGpuReduceSum(in_arr.handle,out_arr.handle,cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+    computespace = ctypes.c_int(-1)
+    _LIB.DLGpuReduceSum(in_arr.handle,out_arr.handle,cudnnlist, cudnnHandle, memorytoSaving, cudaStream, computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -274,7 +275,7 @@ def matrix_pow(in_arr, val, out_arr):
 #��
 
 
-def convolution_1d_forward(in_arr, in_filter, out_arr, cudnnlist, cudnnHandle):
+def convolution_1d_forward(in_arr, in_filter, out_arr, cudnnlist, cudnnHandle, cudaStream):
     assert isinstance(in_arr, _nd.NDArray)
     assert isinstance(in_filter, _nd.NDArray)
     assert isinstance(out_arr, _nd.NDArray)
@@ -282,7 +283,7 @@ def convolution_1d_forward(in_arr, in_filter, out_arr, cudnnlist, cudnnHandle):
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
-    _LIB.DLGpuConvolution1DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving)
+    _LIB.DLGpuConvolution1DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -295,7 +296,8 @@ def convolution_2d_forward(in_arr, in_filter, out_arr,cudnnlist, cudnnHandle, cu
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
-    _LIB.DLGpuConvolution2DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+    computespace = ctypes.c_int(-1)
+    _LIB.DLGpuConvolution2DForward(in_arr.handle, in_filter.handle, out_arr.handle, cudnnlist, cudnnHandle, memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -320,8 +322,9 @@ def convolution_backward_filter(in_arr,dout_arr,in_filter,in_dfilter, cudnnlist,
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
+    computespace = ctypes.c_int(-1)
     _LIB.DLGpuConvolutionBackwardFilter(in_arr.handle, dout_arr.handle, in_filter.handle, in_dfilter.handle, cudnnlist,
-                                        cudnnHandle,memorytoSaving, cudaStream)
+                                        cudnnHandle,memorytoSaving, cudaStream, computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -333,8 +336,9 @@ def convolution_backward_data(in_arr,dout_arr,in_filter,dinput_arr, cudnnlist, c
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
+    computespace = ctypes.c_int(-1)
     _LIB.DLGpuConvolutionBackwardData(in_arr.handle, dout_arr.handle, in_filter.handle, dinput_arr.handle, cudnnlist,
-                                      cudnnHandle, memorytoSaving, cudaStream)
+                                      cudnnHandle, memorytoSaving, cudaStream, computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -676,8 +680,9 @@ def dropout_forward(input,output,dataformat,dropout,seed,inputd, cudnnHandle, cu
     cudnnlist = ctypes.pointer(cudnnlist)
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
+    computespace = ctypes.c_int(-1)
     _LIB.DLGpuDropoutForward(input.handle, output.handle, dataformat, dropout, seed, reserveSpace_p, inputd, cudnnlist,
-                             cudnnHandle,memorytoSaving, cudaStream)
+                             cudnnHandle,memorytoSaving, cudaStream,computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
 
 
@@ -812,8 +817,9 @@ def bn_forward(input,output,batchNormMode,n,mean_p,var_p,cudnnlist, cudnnHandle,
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
+    computespace = ctypes.c_int(-1)
     _LIB.DLGpuBatchNormalizationForward(input.handle, output.handle, batchNormMode, n, mean_p, var_p, cudnnlist,
-                                        cudnnHandle, memorytoSaving, cudaStream)
+                                        cudnnHandle, memorytoSaving, cudaStream, computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 
@@ -837,8 +843,9 @@ def bn_backward(input,doutput,dinput,batchNormMode,mean_p,var_p,cudnnlist, cudnn
 
     memorytoSaving = ctypes.c_int(0)
     memorytoSaving = ctypes.pointer(memorytoSaving)
+    computespace = ctypes.c_int(-1)
     _LIB.DLGpuBatchNormalizationBackward(input.handle, doutput.handle, dinput.handle, batchNormMode, mean_p, var_p,
-                                         cudnnlist, cudnnHandle, memorytoSaving, cudaStream)
+                                         cudnnlist, cudnnHandle, memorytoSaving, cudaStream, computespace)
     memorytoSaving = _LIB.getInt(memorytoSaving)
     return memorytoSaving
 

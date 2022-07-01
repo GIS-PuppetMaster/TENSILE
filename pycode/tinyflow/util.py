@@ -86,12 +86,15 @@ def main(raw_log_path, repeat_times, job_number, batch_size, model, **kwargs):
         num_step = 50
         job_pool = [run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, **kwargs) for job_id in range(job_number)]
         for job in job_pool:
+            # job.daemon = True
             job.start()
 
         if 'schedule' in log_path:
             scheduler = Process(target=mp.multiprocess_init, args=(global_message_queue, global_control_queue, job_number))
+            # scheduler.daemon=True
             scheduler.start()
             while True in [job.is_alive() for job in job_pool]:
+                # print([job.is_alive() for job in job_pool])
                 for i in range(job_number):
                     if not top_message_queue_list[i].empty():
                         # print("job ", i, "message")
