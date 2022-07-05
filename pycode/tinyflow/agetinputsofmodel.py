@@ -12,6 +12,7 @@ from matplotlib import cm
 import keras
 from keras import backend as K
 import numpy as np
+import tensorflow as tf
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 # 第几块gpu
@@ -232,64 +233,66 @@ def load(opname, n):
     model.load_weights('../../res/model_parameter/' + opname + '_model.hdf5', by_name=True, skip_mismatch=True)
     return model
 
-
-def gettime(node, inputsshape):
-    import tensorflow as tf
-
-    # physical_devices = tf.config.list_physical_devices('GPU')
-    # tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
-    global inited
-    global handle
-    global old_GPU
-    if not inited:
-        old_GPU = int(os.environ['CUDA_VISIBLE_DEVICES'])
-        print("Now on GPU" + str(old_GPU))
+class TimeGetter():
+    def __init__(self):
+        self.old_GPU = int(os.environ['CUDA_VISIBLE_DEVICES'])
+        # print("Now on GPU" + str(old_GPU))
         nvmlInit()
-        handle = nvmlDeviceGetHandleByIndex(old_GPU)
-        inited = True
-    tmp = nvmlDeviceGetUtilizationRates(handle)
-    tmp = float(tmp.gpu)
-    before_load = nvmlDeviceGetMemoryInfo(handle).used
-    list = getinputsofmodel(node, inputsshape)
-    with tf.device('/cpu:0'):
-        if len(list) == 2:
-            opname = list[0]
-            list[1].insert(0, tmp)
-            inputsofmodel = np.array(list[1])
-            file_handle = open('../../res/data_bn/' + opname + '_mean_and_std.txt', mode='r')
-            model = load(opname, len(file_handle.readlines()) + 1)
-            file_handle.close()
-            time = model.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
-            del model
-        if len(list) == 3:
-            opname1 = list[0]
-            opname2 = list[1]
-            list[2].insert(0, tmp)
-            inputsofmodel = np.array(list[2])
-            file_handle1 = open('../../res/data_bn/' + opname1 + '_mean_and_std.txt', mode='r')
-            model1 = load(opname1, len(file_handle1.readlines()) + 1)
-            file_handle1.close()
-            time1 = model1.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
-            file_handle2 = open('../../res/data_bn/' + opname2 + '_mean_and_std.txt', mode='r')
-            model2 = load(opname2, len(file_handle2.readlines()) + 1)
-            file_handle2.close()
-            time2 = model2.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
-            time = time1 + time2
-            del model1
-            del model2
-    K.clear_session()
-    import gc
-    gc.collect()
-    # from numba import cuda
-    # cuda.close()
-    # cuda.select_device(old_GPU)
-    after_load = nvmlDeviceGetMemoryInfo(handle).used
-    print(before_load)
-    print(after_load)
-    # assert before_load == after_load
-    # queue.put(time[0][0])
+        self.handle = nvmlDeviceGetHandleByIndex(old_GPU)
+        self.models = {}
+        with tf.device('/cpu:0'):
+            for opname in load_list:
+                file_handle = open('../../res/data_bn/' + opname + '_mean_and_std.txt', mode='r')
+                model = load(opname, len(file_handle.readlines()) + 1)
+                file_handle.close()
+                self.models[opname]=model
 
-    return time[0][0]
+    def gettime(self, node, inputsshape):
+        tmp = nvmlDeviceGetUtilizationRates(self.handle)
+        tmp = float(tmp.gpu)
+        # before_load = nvmlDeviceGetMemoryInfo(handle).used
+        list = getinputsofmodel(node, inputsshape)
+        with tf.device('/cpu:0'):
+            if len(list) == 2:
+                opname = list[0]
+                list[1].insert(0, tmp)
+                inputsofmodel = np.array(list[1])
+                model = self.models[opname]
+                # file_handle = open('../../res/data_bn/' + opname + '_mean_and_std.txt', mode='r')
+                # model = load(opname, len(file_handle.readlines()) + 1)
+                # file_handle.close()
+                time = model.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
+                del model
+            if len(list) == 3:
+                opname1 = list[0]
+                opname2 = list[1]
+                list[2].insert(0, tmp)
+                inputsofmodel = np.array(list[2])
+                model1 = self.models[opname1]
+                # file_handle1 = open('../../res/data_bn/' + opname1 + '_mean_and_std.txt', mode='r')
+                # model1 = load(opname1, len(file_handle1.readlines()) + 1)
+                # file_handle1.close()
+                time1 = model1.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
+                # file_handle2 = open('../../res/data_bn/' + opname2 + '_mean_and_std.txt', mode='r')
+                # model2 = load(opname2, len(file_handle2.readlines()) + 1)
+                # file_handle2.close()
+                model2 = self.models[opname2]
+                time2 = model2.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
+                time = time1 + time2
+                del model1
+                del model2
+        K.clear_session()
+        import gc
+        gc.collect()
+        # from numba import cuda
+        # cuda.close()
+        # cuda.select_device(old_GPU)
+        # after_load = nvmlDeviceGetMemoryInfo(handle).used
+        # print(before_load)
+        # print(after_load)
+        # assert before_load == after_load
+        # queue.put(time[0][0])
+
+        return time[0][0]
 
 

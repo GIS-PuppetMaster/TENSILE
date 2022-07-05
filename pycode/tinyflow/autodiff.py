@@ -16,7 +16,7 @@ from line_profiler import LineProfiler
 
 import os
 
-from .agetinputsofmodel import gettime
+from .agetinputsofmodel import TimeGetter
 
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
@@ -2400,13 +2400,15 @@ class Executor(object):
                 else:
                     index_to_gpu_map_[node.index + self.total_node] = None
             if self.feed_shapes is None:
+                time_getter = TimeGetter()
                 self.infer_shape(feed_shapes)
+                inputs = []
                 for node in self.topo_order:
                     if node.index not in index_to_gpu_map_:
                         input_shape = []
                         for input_node in node.inputs:
                             input_shape.append(self.node_to_shape_map[input_node])
-                        operation_run_time = gettime(node, input_shape)
+                        operation_run_time = time_getter.gettime(node, input_shape)
                         # q = multiprocessing.Queue()
                         # p = multiprocessing.Process(target=gettime, args=(node, input_shape, q))
                         # p.start()

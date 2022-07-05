@@ -1,6 +1,6 @@
 import os
 
-from tensorflow.python.eager import executor
+
 
 os.environ['CUDA_VISIBLE_DEVICES'] = f'{0}'
 from VGG16_test_leo import VGG16

@@ -129,7 +129,7 @@ class TrainExecutor(object):
                     #此时ret为ndarray
                     #value都存在self.node_to_arr_map
                     self.node_to_arr_map[node] = ret
-                    node_computed.add(node)
+                    # node_computed.add(node)
                     continue
 
 
@@ -173,7 +173,7 @@ class TrainExecutor(object):
                     memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
 
                 #此点被计算过了
-                node_computed.add(node)
+                # node_computed.add(node)
 
 
 
@@ -232,7 +232,7 @@ class TrainExecutor(object):
 
 
 
-                    node_computed.add(node)
+                    # node_computed.add(node)
                     continue
 
                 # 如果node是变量，不用管
@@ -283,7 +283,7 @@ class TrainExecutor(object):
                     memorytoSaving = node.op.compute(node, input_vals, node_val, self.cudnnHandle, self.cublasHandle, self.cudaStream)
 
                 # 此点被计算过了
-                node_computed.add(node)
+                # node_computed.add(node)
 
 
             # 把结果输出了： [loss,变量按网络顺序],这里只是输出value，并不保证一定在gpu中

@@ -1,3 +1,5 @@
+import os
+
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
@@ -10,7 +12,7 @@ make_csv()
 net_type = ['VGG-16', 'InceptionV3', 'InceptionV4', 'ResNet-50', 'DenseNet']
 method_type = ['TENSILE', 'vDNN', 'Capuchin']
 df_list = []
-csv_path = 'D:\PycharmProjects\TENSILE实验数据/TENSILE/log/'
+csv_path = '/home/zkx/PyProject/TENSILE8/pycode/tinyflow/log/'
 with open(csv_path + 'MultiWorkloadsMSR.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
@@ -32,6 +34,8 @@ with open(csv_path + 'MultiWorkloadsEOR_cold_start.csv') as f:
 with open(csv_path + 'MultiWorkloadsCBR_cold_start.csv') as f:
     df = pd.read_csv(f, index_col=False)
     df_list.append(df)
+if not os.path.exists(csv_path + '/pic/'):
+    os.makedirs(csv_path+'/pic/')
 # plt.figure(figsize=(40, 16))
 markersize=8
 fig, axis = plt.subplots(3, 5, sharex='col', sharey='row', figsize=(12, 6))
@@ -106,7 +110,7 @@ plt.subplots_adjust(wspace=0.3)
 with open(csv_path + 'BatchSizeMSR.csv') as f:
     df = pd.read_csv(f, index_col=False)
 df = np.array(df)[..., 1:]
-x = ['2', '4', '8', '16', '32']
+x = ['4', '8', '16', '32']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[0].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)
@@ -123,7 +127,7 @@ with open(csv_path + 'BatchSizeEOR.csv') as f:
 df = np.array(df)[..., 1:]
 # df.index =['2', '4', '8', '16', '32']
 # df.to_csv(csv_path + 'BatchsizeMSR_temp.csv')
-x = ['2', '4', '8', '16', '32']
+x = ['4', '8', '16', '32']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[1].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)
@@ -140,7 +144,7 @@ with open(csv_path + 'BatchSizeCBR.csv') as f:
 df = np.array(df)[..., 1:]
 # df.index =['2', '4', '8', '16', '32']
 # df.to_csv(csv_path + 'BatchsizeMSR_temp.csv')
-x = ['2', '4', '8', '16', '32']
+x = ['4', '8', '16', '32']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[2].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)
