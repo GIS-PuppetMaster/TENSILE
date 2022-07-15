@@ -344,8 +344,8 @@ def swapsgd(topoorder):
             tmp = topoorder[i]
             topoorder.remove(tmp)
             topoorder.insert(j,tmp)
-    for i in range(len(topoorder)):
-        print(i,topoorder[i])
+    # for i in range(len(topoorder)):
+    #     print(i,topoorder[i])
     return topoorder
 
 

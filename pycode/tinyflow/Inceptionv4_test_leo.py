@@ -370,7 +370,7 @@ class Inceptionv4():
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, use_predict=True, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
@@ -446,7 +446,7 @@ class Inceptionv4():
         y = self.ad.fullyactivation_forward_op(dense, "NCHW", "softmax")
         loss = self.ad.crossEntropy_loss(y, y_)
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path)
+                                         top_message_queue=top_message_queue, log_path=self.log_path, use_predict=use_predict)
 
         feed_dict = {f1: f1val, f2: f2val, f3: f3val, f4: f4val, f5_1: f5_1val, f5_2: f5_2val, f6_1: f6_1val, f6_2: f6_2val, f6_3: f6_3val, f6_4: f6_4val, f7: f7val, W: W_val, b: b_val}
         feed_dict.update(dicta1)
@@ -538,7 +538,7 @@ class Inceptionv4():
             f1_cold_start.write(f'time_cost:{(end_time - start_time_cold_start) / (self.num_step - cold_start_i)}')
             f1_cold_start.flush()
             f1_cold_start.close()
-        print(loss_val)
+        # print(loss_val)
 
         print("success")
         if not self.top_message_queue.empty():
@@ -557,17 +557,17 @@ class Inceptionv4():
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
-    for path, repeat, jobs_num, batch_size in workloads:
+    for path, repeat, jobs_num, batch_size,use_predict in workloads:
         raw_path = path
         for i in range(2):
             if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, Inceptionv4, **kwargs)
+                main(path, repeat, jobs_num, batch_size, Inceptionv4, use_predict, **kwargs)
             elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, Inceptionv4, **kwargs)
+                main(path, repeat, jobs_num, batch_size, Inceptionv4, False, **kwargs)
         if analysis_result:
             get_result(raw_path, repeat)
 

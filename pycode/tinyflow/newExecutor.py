@@ -159,7 +159,7 @@ class Executor(object):
         order_m.reverse()
         order_v.reverse()
         order = order + order_var + order_m + order_v
-        print(order)
+        # print(order)
         # todo 此处hard code，后续需要修改
         self.ctx_cpu = ndarray.cpu(0)
         self.ctx_gpu = ndarray.gpu(0)
@@ -258,7 +258,7 @@ class Executor(object):
                 for node_input in node.inputs:
                     node_inputs.append(node_input.index)
                 node_size = np.prod(self.node_to_shape_map[node]) * 4
-                print("node" + str(node.index) + " size: " + str(node_size))
+                # print("node" + str(node.index) + " size: " + str(node_size))
                 # if len(self.node_to_shape_map[node]) == 1:
                 #     node_size = self.node_to_shape_map[node][0] * 4
                 # else:
@@ -292,7 +292,7 @@ class Executor(object):
 
         if not self.top_control_queue.empty():
             have_got_global_message = True
-            print("get control message")
+            # print("get control message")
             # todo 解析从上游传入的控制信息。
 
             top_swap_list, top_release_list, top_recomputation_list = self.top_control_queue.get()
@@ -334,21 +334,21 @@ class Executor(object):
             # print(top_swap_list)
             # print(top_release_list)
             # print(top_recomputation_list)
-            print("swap list")
-            for node in self.topo_order:
-                print(node.control_message_out)
-            print("recompute list")
-            for node in self.topo_order:
-                print(node.recompute_list)
-            print("release list")
-            for node in self.topo_order:
-                print(node.release_list)
-            print("update control message")
+            # print("swap list")
+            # for node in self.topo_order:
+            #     print(node.control_message_out)
+            # print("recompute list")
+            # for node in self.topo_order:
+            #     print(node.recompute_list)
+            # print("release list")
+            # for node in self.topo_order:
+            #     print(node.release_list)
+            # print("update control message")
 
         # Traverse graph in topo order and compute values for all nodes.
         for node in self.topo_order:
-            if have_got_global_message:
-                print(node.index)
+            # if have_got_global_message:
+            #     print(node.index)
 
             if node.index in index_to_gpu_map:
                 # Skip placeholder nodes. Values already provided by feed_dict.
@@ -371,7 +371,7 @@ class Executor(object):
 
             for n in node.inputs:
                 if index_to_gpu_map[n.index] is None:
-                    print("when computing " + str(node.index) + " passive import " + str(n.index))
+                    # print("when computing " + str(node.index) + " passive import " + str(n.index))
                     # todo 考虑如何被动进行swap in
                     assert index_to_cpu_flag[n.index], "输入tensor不在cpu上"
                     node_ndarray_new = ndarray.empty(self.node_to_shape_map[n], self.ctx_gpu)
@@ -512,6 +512,6 @@ def swapadam(topoorder):
             tmp = topoorder[i]
             topoorder.remove(tmp)
             topoorder.insert(j,tmp)
-    for i in range(len(topoorder)):
-        print(i,topoorder[i])
+    # for i in range(len(topoorder)):
+    #     print(i,topoorder[i])
     return topoorder

@@ -16,7 +16,7 @@ from line_profiler import LineProfiler
 
 import os
 
-from .agetinputsofmodel import TimeGetter
+from .agetinputsofmodel import TimeGetter, getinputsofmodel
 
 index_to_cpu_map = {}
 index_to_cpu_flag = {}
@@ -134,7 +134,7 @@ class MemoryManager(threading.Thread):
                 # time2 = datetime.datetime.now()
 
                 node_ndarray.copyto(node_ndarray_new, self.cudaSwapStream)
-                if index_to_gpu_map[node_index] is None:
+                if node_index not in index_to_gpu_map.keys() or index_to_gpu_map[node_index] is None:
                     index_to_gpu_map[node_index] = node_ndarray_new
                 else:
                     pass
@@ -2240,7 +2240,7 @@ def nodelist_to_name(nodelist):
 class Executor(object):
     """Executor computes values for given set of nodes in computation graph."""
 
-    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path):
+    def __init__(self, targetloss, y, learning_rate, top_control_queue, top_message_queue, log_path, use_predict=True):
         """
         Parameters
         ----------
@@ -2251,6 +2251,7 @@ class Executor(object):
         node_to_arr_map: dict from node to ndarray.NDArray allocated for node
         feed_shapes: shapes of feed_dict from last run(...)
         """
+        self.use_predict = use_predict
         self.b1 = 0.9
         self.b2 = 0.999
         self.e = 0.00000001
@@ -2402,23 +2403,19 @@ class Executor(object):
             if self.feed_shapes is None:
                 time_getter = TimeGetter()
                 self.infer_shape(feed_shapes)
-                inputs = []
+                # inputs = []
                 for node in self.topo_order:
                     if node.index not in index_to_gpu_map_:
-                        input_shape = []
-                        for input_node in node.inputs:
-                            input_shape.append(self.node_to_shape_map[input_node])
-                        operation_run_time = time_getter.gettime(node, input_shape)
-                        # q = multiprocessing.Queue()
-                        # p = multiprocessing.Process(target=gettime, args=(node, input_shape, q))
-                        # p.start()
-                        # p.join()
-                        # operation_run_time = q.get()
-                        # p.close()
-                        # q.close()
-                        if operation_run_time - 0.0 < 1e-10:
-                            operation_run_time = 1e-5
-                        self.predict_results[node.index] = operation_run_time
+                        if self.use_predict:
+                            input_shape = []
+                            for input_node in node.inputs:
+                                input_shape.append(self.node_to_shape_map[input_node])
+                            operation_run_time = time_getter.gettime(node, input_shape)
+                            if operation_run_time - 0.0 < 1e-10:
+                                operation_run_time = 1e-5
+                            self.predict_results[node.index] = operation_run_time
+                        else:
+                            self.predict_results[node.index] = 1e-5
 
 
     def run(self, feed_dict, convert_to_numpy_ret_vals=False):

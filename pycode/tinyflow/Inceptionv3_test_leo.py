@@ -541,7 +541,7 @@ class Inceptionv3():
 
         feed_dict_mv = {}
         for key, value in feed_dict.items():
-            print(key)
+            # print(key)
             m_key = executor.Variable_node_to_mv[key][0]
             m_val = value
             v_key = executor.Variable_node_to_mv[key][1]
@@ -555,7 +555,7 @@ class Inceptionv3():
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, use_predict=True, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
@@ -1021,7 +1021,7 @@ class Inceptionv3():
         # fc8
 
         executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue,
-                                         top_message_queue=top_message_queue, log_path=self.log_path)
+                                         top_message_queue=top_message_queue, log_path=self.log_path,use_predict=use_predict)
 
         feed_dict = {filterb_1: filtersb_val1, filterb_2: filtersb_val2, filterb_3: filtersb_val3
             , filterb_4: filtersb_val4, filterb_5: filtersb_val5,
@@ -1163,17 +1163,17 @@ class Inceptionv3():
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
-    for path, repeat, jobs_num, batch_size in workloads:
+    for path, repeat, jobs_num, batch_size,use_predict in workloads:
         raw_path = path
         for i in range(2):
             if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, Inceptionv3, **kwargs)
+                main(path, repeat, jobs_num, batch_size, Inceptionv3, use_predict, **kwargs)
             elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, Inceptionv3, **kwargs)
+                main(path, repeat, jobs_num, batch_size, Inceptionv3, False, **kwargs)
         if analysis_result:
             get_result(raw_path, repeat)
 

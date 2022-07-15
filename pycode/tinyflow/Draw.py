@@ -43,7 +43,7 @@ fig, axis = plt.subplots(3, 5, sharex='col', sharey='row', figsize=(12, 6))
 for i in range(5):
     df = df_list[0]
     df = np.array(df)[..., 1:]
-    x = ['x1', 'x2', 'x3']
+    x = ['x1', 'x2', 'x3', 'x4']
     TENSILE = df[i, :]
     vDNN = df[i + 5, :]
     Capuchin = df[i + 10, :]
@@ -61,14 +61,14 @@ for i in range(5):
         axis[0, i].set_ylabel('MSR', size=12)
 
     df = df_list[1]
-    df = np.array(df)[..., 1:]
-    x = ['x1', 'x2', 'x3']
+    df = np.array(df)[..., 1:].astype(float)
+    x = ['x1', 'x2', 'x3', 'x4']
     TENSILE = df[i, :]
     vDNN = df[i + 5, :]
     Capuchin = df[i + 10, :]
     axis[1, i].plot(x, TENSILE, 'bD-', label='TENSILE', markersize=markersize)
     df = df_list[4]
-    df = np.array(df)[..., 1:]
+    df = np.array(df)[..., 1:].astype(float)
     TENSILE = df[i, :]
     axis[1, i].plot(x, TENSILE, 'rx-', label='TENSILE$_{cs}$', markersize=markersize)
     axis[1, i].plot(x, vDNN, 'y^-', label='vDNN', markersize=markersize)
@@ -80,7 +80,7 @@ for i in range(5):
 
     df = df_list[2]
     df = np.array(df)[..., 1:]
-    x = ['x1', 'x2', 'x3']
+    x = ['x1', 'x2', 'x3', 'x4']
     TENSILE = df[i, :]
     vDNN = df[i + 5, :]
     Capuchin = df[i + 10, :]
@@ -110,7 +110,7 @@ plt.subplots_adjust(wspace=0.3)
 with open(csv_path + 'BatchSizeMSR.csv') as f:
     df = pd.read_csv(f, index_col=False)
 df = np.array(df)[..., 1:]
-x = ['4', '8', '16', '32']
+x = ['4', '8', '16', '32', '64']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[0].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)
@@ -127,7 +127,7 @@ with open(csv_path + 'BatchSizeEOR.csv') as f:
 df = np.array(df)[..., 1:]
 # df.index =['2', '4', '8', '16', '32']
 # df.to_csv(csv_path + 'BatchsizeMSR_temp.csv')
-x = ['4', '8', '16', '32']
+x = ['4', '8', '16', '32', '64']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[1].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)
@@ -144,7 +144,7 @@ with open(csv_path + 'BatchSizeCBR.csv') as f:
 df = np.array(df)[..., 1:]
 # df.index =['2', '4', '8', '16', '32']
 # df.to_csv(csv_path + 'BatchsizeMSR_temp.csv')
-x = ['4', '8', '16', '32']
+x = ['4', '8', '16', '32', '64']
 # plt.xticks(arange(len(x)), x)
 for i, net in enumerate(net_type):
     axis[2].plot(x, list(df[i]), markers[i], label=net, markersize=markersize)

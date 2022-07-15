@@ -247,6 +247,7 @@ class TimeGetter():
                 file_handle.close()
                 self.models[opname]=model
 
+
     def gettime(self, node, inputsshape):
         tmp = nvmlDeviceGetUtilizationRates(self.handle)
         tmp = float(tmp.gpu)
@@ -261,8 +262,7 @@ class TimeGetter():
                 # file_handle = open('../../res/data_bn/' + opname + '_mean_and_std.txt', mode='r')
                 # model = load(opname, len(file_handle.readlines()) + 1)
                 # file_handle.close()
-                time = model.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
-                del model
+                time = model.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=0,workers=4,use_multiprocessing=True)
             if len(list) == 3:
                 opname1 = list[0]
                 opname2 = list[1]
@@ -272,26 +272,14 @@ class TimeGetter():
                 # file_handle1 = open('../../res/data_bn/' + opname1 + '_mean_and_std.txt', mode='r')
                 # model1 = load(opname1, len(file_handle1.readlines()) + 1)
                 # file_handle1.close()
-                time1 = model1.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
+                time1 = model1.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=0,workers=4,use_multiprocessing=True)
                 # file_handle2 = open('../../res/data_bn/' + opname2 + '_mean_and_std.txt', mode='r')
                 # model2 = load(opname2, len(file_handle2.readlines()) + 1)
                 # file_handle2.close()
                 model2 = self.models[opname2]
-                time2 = model2.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=1)
+                time2 = model2.predict(inputsofmodel.reshape(1, inputsofmodel.shape[0]), verbose=0,workers=4,use_multiprocessing=True)
                 time = time1 + time2
-                del model1
-                del model2
-        K.clear_session()
-        import gc
-        gc.collect()
-        # from numba import cuda
-        # cuda.close()
-        # cuda.select_device(old_GPU)
-        # after_load = nvmlDeviceGetMemoryInfo(handle).used
-        # print(before_load)
-        # print(after_load)
-        # assert before_load == after_load
-        # queue.put(time[0][0])
+            K.clear_session()
 
         return time[0][0]
 

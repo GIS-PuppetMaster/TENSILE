@@ -24,13 +24,23 @@ import keras
 from line_profiler import LineProfiler
 from typing import List
 
+from pycode.tinyflow import gpu_op
+
 
 def get_PCIE_bandwidth():
     # if not debug_mod:
     #     PCIE_bandwidth = nvmlDeviceGetPcieThroughput(handle, NVML_PCIE_UTIL_COUNT)  # KB/s => MB/ms
     #     PCIE_bandwidth /= 1000000
     # else:
-    PCIE_bandwidth = 12
+    # PCIE_bandwidth = 12
+    # pciin, pciout = gpu_op.testPcie()
+    pciin = 12496995328
+    pciout = 13378627584
+
+    # Bytes/s
+    PCIE_bandwidth = (pciin + pciout) / 2
+    PCIE_bandwidth /= np.power(2,9)
+    #print(f'PCIE_bandwidth:{PCIE_bandwidth}')
     return PCIE_bandwidth
 
 

@@ -4,31 +4,23 @@ from Inceptionv4_test_leo import run_exp as InceptionV4
 from ResNet50_test_leo import run_exp as ResNet50
 from DenseNet_test_leo import run_exp as DenseNet
 
-# single workload and multiple dynamic workloads experiments
-# DenseNet([['./log/DenseNet x1/', 5, 1, 16]])
-# VGG([['./log/VGG x1/', 3, 2, 16]])
-# dsZResNet50([['./log/ResNet x2/', 5, 2, 16], ['./log/ResNet x3/', 5, 3, 16]])
-# DenseNet([['./log/DenseNet x2/', 5, 2, 16], ['./log/DenseNet x3/', 5, 3, 16]])
-"""
-VGG([['./log/VGG x1/', 5, 1, 16], ['./log/VGG x2/', 5, 2, 16], ['./log/VGG x3/', 5, 3, 16]])
-InceptionV3([['./log/Inception V3 x1/', 5, 1, 16],['./log/Inception V3 x2/', 5, 2, 16], ['./log/Inception V3 x3/', 5, 3, 16]])
-InceptionV4([['./log/Inception V4 x1/', 5, 1, 16], ['./log/Inception V4 x2/', 5, 2, 16], ['./log/Inception V4 x3/', 5, 3, 16]])
-ResNet50([['./log/ResNet x1/', 5, 1, 16], ['./log/ResNet x2/', 5, 2, 16], ['./log/ResNet x3/', 5, 3, 16]])
-DenseNet([['./log/DenseNet x1/', 5, 1, 16], ['./log/DenseNet x2/', 5, 2, 16], ['./log/DenseNet x3/', 5, 3, 16]])
-"""
-"""
-VGG([['./log/VGG/', 3, 1, 16], ['./log/VGG x1/', 3, 1, 2], ['./log/VGG x2/', 3, 2, 2], ['./log/VGG x3/', 3, 3, 2]])
-InceptionV3([['./log/Inception V3/', 3, 1, 16],['./log/Inception V3 x1/', 3, 1, 2],['./log/Inception V3 x2/', 3, 2, 2], ['./log/Inception V3 x3/', 3, 3, 2]])
-InceptionV4([['./log/Inception V4/', 3, 1, 16], ['./log/Inception V4 x1/', 3, 1, 2], ['./log/Inception V4 x2/', 3, 2, 2], ['./log/Inception V4 x3/', 3, 3, 2]])
-ResNet50([['./log/ResNet/', 3, 1, 16], ['./log/ResNet x1/', 3, 1, 2], ['./log/ResNet x2/', 3, 2, 2], ['./log/ResNet x3/', 3, 3, 2]])
-DenseNet([['./log/DenseNet/', 3, 1, 16], ['./log/DenseNet x1/', 3, 1, 2], ['./log/DenseNet x2/', 3, 2, 2], ['./log/DenseNet x3/', 3, 3, 2]])
-"""
+
+for use_predict in [False]:
+    post = 'predict' if use_predict else 'no_predict'
+    VGG([[f'./log/VGG x1 {post}/', 5, 1, 16, use_predict], [f'./log/VGG x2 {post}/', 5, 2, 16, use_predict], [f'./log/VGG x3 {post}/', 5, 3, 16, use_predict], [f'./log/VGG x4 {post}/', 5, 4, 16, use_predict]])
+    InceptionV3([[f'./log/Inception V3 x1 {post}/', 5, 1, 16, use_predict],[f'./log/Inception V3 x2 {post}/', 5, 2, 16, use_predict], [f'./log/Inception V3 x3 {post}/', 5, 3, 16, use_predict], [f'./log/Inception V3 x4 {post}/', 5, 4, 16, use_predict]])
+    InceptionV4([[f'./log/Inception V4 x1 {post}/', 5, 1, 16, use_predict], [f'./log/Inception V4 x2 {post}/', 5, 2, 16, use_predict], [f'./log/Inception V4 x3 {post}/', 5, 3, 16, use_predict], [f'./log/Inception V4 x4 {post}/', 5, 4, 16, use_predict]])
+    ResNet50([[f'./log/ResNet x1 {post}/', 5, 1, 16, use_predict], [f'./log/ResNet x2 {post}/', 5, 2, 16, use_predict], [f'./log/ResNet x3 {post}/', 5, 3, 16, use_predict], [f'./log/ResNet x4 {post}/', 5, 4, 16, use_predict]])
+    DenseNet([[f'./log/DenseNet x1 {post}/', 5, 1, 16, use_predict], [f'./log/DenseNet x2 {post}/', 5, 2, 16, use_predict], [f'./log/DenseNet x3 {post}/', 5, 3, 16, use_predict], [f'./log/DenseNet x4 {post}/', 5, 4, 16, use_predict]])
+    
 
 # batch size experiments
-# VGG([['./log/VGG bs4/', 5, 1, 4], ['./log/VGG bs8/', 5, 1, 8], ['./log/VGG bs32/', 5, 1, 32]])
-# InceptionV3([['./log/Inception V3 bs4/', 5, 1, 4], ['./log/Inception V3 bs8/', 5, 1, 8], ['./log/Inception V3 bs32/', 5, 1, 32]])
-InceptionV4([['./log/Inception V4 bs4/', 5, 1, 4], ['./log/Inception V4 bs8/', 5, 1, 8], ['./log/Inception V4 bs32/', 5, 1, 32]])
-ResNet50([['./log/ResNet bs4/', 5, 1, 4], ['./log/ResNet bs8/', 5, 1, 8], ['./log/ResNet bs32/', 5, 1, 32]])
-DenseNet([['./log/DenseNet bs4/', 5, 1, 4], ['./log/DenseNet bs8/', 5, 1, 8], ['./log/DenseNet bs32/', 5, 1, 32]])
+# VGG([[f'./log/VGG bs4/', 5, 1, 4], [f'./log/VGG bs8/', 5, 1, 8], [f'./log/VGG bs32/', 5, 1, 32], [f'./log/VGG bs64/', 5, 1, 64]])
+# InceptionV3([[f'./log/Inception V3 bs4/', 5, 1, 4], [f'./log/Inception V3 bs8/', 5, 1, 8], [f'./log/Inception V3 bs32/', 5, 1, 32], [f'./log/Inception V3 bs64/', 5, 1, 64]])
+# InceptionV4([[f'./log/Inception V4 bs4/', 5, 1, 4], [f'./log/Inception V4 bs8/', 5, 1, 8], [f'./log/Inception V4 bs32/', 5, 1, 32], [f'./log/Inception V4 bs64/', 5, 1, 64]])
+# ResNet50([[f'./log/ResNet bs4/', 5, 1, 4], [f'./log/ResNet bs8/', 5, 1, 8], [f'./log/ResNet bs32/', 5, 1, 32], [f'./log/ResNet bs64/', 5, 1, 64]])
+# DenseNet([[f'./log/DenseNet bs4/', 5, 1, 4], [f'./log/DenseNet bs8/', 5, 1, 8], [f'./log/DenseNet bs32/', 5, 1, 32], [f'./log/DenseNet bs64/', 5, 1, 64]])
+#
+#
 
 

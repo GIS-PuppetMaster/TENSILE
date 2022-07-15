@@ -2,7 +2,7 @@ import numpy as np
 import traceback
 
 
-def get_result(raw_workload, repeat_times):
+def get_result(raw_workload, repeat_times, skip_cold_start=False):
     all_saved_ratio = []
     all_saved_ratio_cold_start = []
     all_extra_overhead = []
@@ -39,18 +39,18 @@ def get_result(raw_workload, repeat_times):
         all_schedule_max_memory_used.append(schedule_max_memory_used)
         saved_ratio = 1 - schedule_max_memory_used / vanilla_max_memory_used
         all_saved_ratio.append(saved_ratio)
-
-        with open(scheduled_path + f'gpu_record_cold_start.txt', 'r') as f:
-            lines = f.readlines()
-        try:
-            temp = lines[-1].split('\t')
-            schedule_max_memory_used = float(temp[2].split(' ')[1])
-        except:
-            temp = lines[-2].split('\t')
-            schedule_max_memory_used = float(temp[2].split(' ')[1])
-        all_schedule_max_memory_used_cold_start.append(schedule_max_memory_used)
-        saved_ratio = 1 - schedule_max_memory_used / vanilla_max_memory_used
-        all_saved_ratio_cold_start.append(saved_ratio)
+        if not skip_cold_start:
+            with open(scheduled_path + f'gpu_record_cold_start.txt', 'r') as f:
+                lines = f.readlines()
+            try:
+                temp = lines[-1].split('\t')
+                schedule_max_memory_used = float(temp[2].split(' ')[1])
+            except:
+                temp = lines[-2].split('\t')
+                schedule_max_memory_used = float(temp[2].split(' ')[1])
+            all_schedule_max_memory_used_cold_start.append(schedule_max_memory_used)
+            saved_ratio = 1 - schedule_max_memory_used / vanilla_max_memory_used
+            all_saved_ratio_cold_start.append(saved_ratio)
 
         with open(vanilla_path + 'gpu_time_cold_start.txt', 'r') as f:
             lines = f.readlines()
@@ -64,15 +64,15 @@ def get_result(raw_workload, repeat_times):
         all_extra_overhead.append(extra_overhead)
         memory_saved_to_extra_overhead_ratio = saved_ratio / extra_overhead
         all_memory_saved_to_extra_overhead_ratio.append(memory_saved_to_extra_overhead_ratio)
-
-        with open(scheduled_path + 'gpu_time_cold_start.txt', 'r') as f:
-            lines = f.readlines()
-        schedule_time_cost = float(lines[0].replace('time_cost:', ''))
-        all_schedule_time_cost_cold_start.append(schedule_time_cost)
-        extra_overhead_cold_start = schedule_time_cost / vanilla_time_cost - 1
-        all_extra_overhead_cold_start.append(extra_overhead_cold_start)
-        memory_saved_to_extra_overhead_ratio = saved_ratio / extra_overhead
-        all_memory_saved_to_extra_overhead_ratio_cold_start.append(memory_saved_to_extra_overhead_ratio)
+        if not skip_cold_start:
+            with open(scheduled_path + 'gpu_time_cold_start.txt', 'r') as f:
+                lines = f.readlines()
+            schedule_time_cost = float(lines[0].replace('time_cost:', ''))
+            all_schedule_time_cost_cold_start.append(schedule_time_cost)
+            extra_overhead_cold_start = schedule_time_cost / vanilla_time_cost - 1
+            all_extra_overhead_cold_start.append(extra_overhead_cold_start)
+            memory_saved_to_extra_overhead_ratio = saved_ratio / extra_overhead
+            all_memory_saved_to_extra_overhead_ratio_cold_start.append(memory_saved_to_extra_overhead_ratio)
     all_saved_ratio = np.array(all_saved_ratio)
     all_saved_ratio_cold_start = np.array(all_saved_ratio_cold_start)
     all_extra_overhead = np.array(all_extra_overhead)

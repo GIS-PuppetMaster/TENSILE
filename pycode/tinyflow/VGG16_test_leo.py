@@ -166,7 +166,7 @@ class VGG16():
         executor.init_operator_latency(feed_dict_sample=feed_dict, **kwargs)
         return executor.predict_results
 
-    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, **kwargs):
+    def run(self, executor_ctx, top_control_queue, top_message_queue, n_class, X_val, y_val, use_predict=True, **kwargs):
         self.n_class = n_class
         self.top_control_queue = top_control_queue
         self.top_message_queue = top_message_queue
@@ -273,7 +273,7 @@ class VGG16():
         b8_val = ndarray.array(np.ones(n_class) * 0.1, executor_ctx)
 
         # 只声明，不操作
-        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue, top_message_queue=top_message_queue, log_path=self.log_path)
+        executor = self.ad.Executor(loss, y, 0.001, top_control_queue=top_control_queue, top_message_queue=top_message_queue, log_path=self.log_path, use_predict=use_predict)
         feed_dict = {
             W1_1: W1_1_val,
             W1_2: W1_2_val,
@@ -387,17 +387,17 @@ class VGG16():
 
 
 def run_exp(workloads, analysis_result=True, skip=None, **kwargs):
-    for path, repeat, jobs_num, batch_size in workloads:
+    for path, repeat, jobs_num, batch_size, use_predict in workloads:
         raw_path = path
         for i in range(2):
             if i == 0 and skip != 'schedule':
                 path = raw_path + 'schedule'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, VGG16, **kwargs)
+                main(path, repeat, jobs_num, batch_size, VGG16, use_predict, **kwargs)
             elif skip != 'vanilla':
                 path = raw_path + 'vanilla'
                 print(path)
-                main(path, repeat, jobs_num, batch_size, VGG16, **kwargs)
+                main(path, repeat, jobs_num, batch_size, VGG16, False, **kwargs)
         if analysis_result:
             get_result(raw_path, repeat)
 

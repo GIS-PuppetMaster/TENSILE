@@ -51,7 +51,7 @@ class GPURecord(threading.Thread):
         self.f.close()
 
 
-def run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, **kwargs):
+def run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, use_predict, **kwargs):
     top_control_queue = multiprocessing.Queue()
     top_control_queue_list.append(top_control_queue)
     top_message_queue = multiprocessing.Queue()
@@ -64,11 +64,11 @@ def run_workload(batch_size, num_step, log_path, top_control_queue_list, top_mes
     y_val = np.random.normal(loc=0, scale=0.1, size=(batch_size, 1000))  # n_class = 1000
 
     p = Process(target=model.run,
-                args=(executor_ctx, top_control_queue, top_message_queue, 1000, X_val, y_val), kwargs=kwargs)
+                args=(executor_ctx, top_control_queue, top_message_queue, 1000, X_val, y_val, use_predict), kwargs=kwargs)
     return p
 
 
-def main(raw_log_path, repeat_times, job_number, batch_size, model, **kwargs):
+def main(raw_log_path, repeat_times, job_number, batch_size, model, use_predict, **kwargs):
     for t in range(repeat_times):
         print(f'repeat_time:{t}')
         global_message_queue = multiprocessing.Queue()
@@ -84,7 +84,7 @@ def main(raw_log_path, repeat_times, job_number, batch_size, model, **kwargs):
             os.makedirs(log_path)
 
         num_step = 50
-        job_pool = [run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, **kwargs) for job_id in range(job_number)]
+        job_pool = [run_workload(batch_size, num_step, log_path, top_control_queue_list, top_message_queue_list, job_id, executor_ctx, model, use_predict, **kwargs) for job_id in range(job_number)]
         for job in job_pool:
             # job.daemon = True
             job.start()
@@ -103,7 +103,7 @@ def main(raw_log_path, repeat_times, job_number, batch_size, model, **kwargs):
                     global_control = global_control_queue.get()
                     for i in range(job_number):
                         if i in global_control:
-                            print("job ", i, "control")
+                            # print("job ", i, "control")
                             top_control_queue_list[i].put(global_control[i])
             for q in top_message_queue_list:
                 q.close()

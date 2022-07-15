@@ -50,7 +50,7 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
                 global_control = global_control_queue.get()
                 for i in range(job_number):
                     if i in global_control:
-                        print("job ", i, "control")
+                        # print("job ", i, "control")
                         top_control_queue_list[i].put(global_control[i])
         for q in top_message_queue_list:
             while not q.empty():
@@ -89,14 +89,14 @@ def run_model(raw_log_path, model: list, top_control_queue_list, top_message_que
 if __name__ == '__main__':
     with open(f'../../res/inferred_shape.pkl', 'rb') as f:
         predict_results = pkl.load(f)
-    repeat_times = 3
+    repeat_times = 5
     for t in range(repeat_times):
         log_path = f'./log/MDW/repeat_{t}/vanilla'
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         # =======================vanilla===================== #
         print(f'vanilla,repeat:{t}')
-        recorder = GPURecord(log_path)
+        recorder = GPURecord(log_path, suffix='_cold_start')
         f1 = open(f"{log_path}/gpu_time_cold_start.txt", "w+")
         top_control_queue_list = []
         top_message_queue_list = []
@@ -128,4 +128,4 @@ if __name__ == '__main__':
         f1.flush()
         f1.close()
         recorder.stop()
-    get_result(raw_workload='./log/MDW/', repeat_times=repeat_times)
+    get_result(raw_workload='./log/MDW/', repeat_times=repeat_times, skip_cold_start=True)
